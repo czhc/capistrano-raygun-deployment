@@ -3,56 +3,107 @@ require 'yaml'
 require 'json'
 
 namespace :deploy do
+  def last_tag_matching(pattern, second_last=nil)
+    matching_tags = `git tag -l '#{pattern}'`.split
+    matching_tags.sort! do |a,b|
+      String.natcmp(b, a, true)
+    end
+
+    last_tag = if matching_tags.length > 0
+                second_last ? matching_tags[1] : matching_tags[0]
+               else
+                 nil
+               end
+  end
+
+  def last_staging_tag(second_last=nil)
+    last_tag_matching('staging-*',second_last)
+  end
+
+  def next_staging_tag
+    hwhen = Time.now.strftime('%Y-%m-%d_%H-%M-%S')
+
+    last_staging_tag = last_tag_matching("staging-#{hwhen}-*")
+    new_tag_serial = if last_staging_tag && last_staging_tag =~ /staging-[0-9]{4}-[0-9]{2}-[0-9]{2}\-([0-9]*)/
+                       $1.to_i + 1
+                     else
+                       1
+                     end
+
+    "#{stage}-#{hwhen}-#{new_tag_serial}"
+  end
+
+  def last_production_tag(second_last=nil)
+    last_tag_matching('production-*',second_last)
+  end
+
+  desc 'Writes a RELEASE file to app root'
+  task :raygun_write_release_file do
+    on roles(:app) do
+      release_note = """
+        version: 6.0.0
+        ownerName: #{`git config --global user.name`.strip}
+        emailAddress: #{`git config --global user.email`.strip}
+        createdAt: #{Time.now}
+        notes: |
+          # Test notes
+      """
+      execute :echo, "\"#{release_note}\"", '>', "#{release_path}/RELEASE"
+    end
+  end
+  
   desc 'Registers a deployment with Raygun'
   task :raygun_register_deployment do
 
     if fetch(:raygun_api_key).nil?
-		ask(:raygun_api_key, 'Required')
-	end
-	if fetch(:raygun_auth_token).nil?
-		ask(:raygun_auth_token, 'Required')
-	end
+      ask(:raygun_api_key, 'Required')
+    end
+    if fetch(:raygun_auth_token).nil?
+      ask(:raygun_auth_token, 'Required')
+    end
 
-	run_locally do
+    run_locally do
 
-        yaml = YAML::load_file(fetch(:raygun_release_path, 'RELEASE'))
+      yaml = YAML::load_file(release_path.join('RELEASE'))
 
-        use_git = fetch(:scm) == :git && fetch(:use_git, true)
-        git_hash = if use_git && system('git rev-parse --verify HEAD')
-            `git rev-parse --verify HEAD`
-        else
-            ""
-        end
+      use_git = fetch(:scm) == :git && fetch(:use_git, true)
+      git_hash = if use_git && system('git rev-parse --verify HEAD')
+        `git rev-parse --verify HEAD`
+      else
+        ""
+      end
 
-        deployment = {
-            'apiKey' => fetch(:raygun_api_key),
-            'version' => yaml['version'],
-            'ownerName' => yaml['ownerName'],
-            'emailAddress' => yaml['emailAddress'],
-            'comment' => yaml['notes'],
-            'scmIdentifier' => git_hash,
-            'createdAt' => yaml['createdAt']
-        }
+      deployment = {
+        'apiKey' => fetch(:raygun_api_key),
+        'version' => yaml['version'],
+        'ownerName' => yaml['ownerName'],
+        'emailAddress' => yaml['emailAddress'],
+        'comment' => yaml['notes'],
+        'scmIdentifier' => git_hash,
+        'createdAt' => yaml['createdAt']
+      }
 
-		uri = URI.parse(fetch(:raygun_api_uri, "https://app.raygun.io"))
-		deploymentEndpoint = "/deployments?authToken=#{fetch(:raygun_auth_token)}"
+      uri = URI.parse(fetch(:raygun_api_uri, "https://app.raygun.io"))
+      deploymentEndpoint = "/deployments?authToken=#{fetch(:raygun_auth_token)}"
 
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = fetch(:raygun_use_ssl, true)
-        http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-        request = Net::HTTP::Post.new(deploymentEndpoint)
-        request.add_field('Content-Type', 'application/json')
-        request.body = deployment.to_json
-        res = http.request(request)
-        case res
-        when Net::HTTPSuccess
-          # OK
-            info "Sent deployment to Raygun"
-        else
-            raise "Error sending deployment to Raygun: " + res.value
-        end
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = fetch(:raygun_use_ssl, true)
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      request = Net::HTTP::Post.new(deploymentEndpoint)
+      request.add_field('Content-Type', 'application/json')
+      request.body = deployment.to_json
+      res = http.request(request)
+      case res
+      when Net::HTTPSuccess
+        # OK
+        info "Sent deployment to Raygun"
+      else
+        raise "Error sending deployment to Raygun: " + res.value
+      end
     end
   end
+
+  before 'deploy:raygun_register_deployment', :raygun_write_release_file
   after 'deploy:finished', :raygun_register_deployment
 
 end
