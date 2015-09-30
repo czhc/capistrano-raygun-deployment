@@ -77,8 +77,8 @@ notes: |
     end
 
     on roles(:app) do
-
-      yaml = YAML::load_file(release_path.join('RELEASE'))
+      release = capture("cat #{release_path.join("RELEASE")}")
+      yaml = YAML::load(release)
 
       use_git = fetch(:scm) == :git && fetch(:use_git, true)
       git_hash = if use_git && system('git rev-parse --verify HEAD')
