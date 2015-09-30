@@ -40,14 +40,28 @@ namespace :deploy do
   desc 'Writes a RELEASE file to app root'
   task :raygun_write_release_file do
     on roles(:app) do
-      release_note = """
-        version: 6.0.0
-        ownerName: #{`git config --global user.name`.strip}
-        emailAddress: #{`git config --global user.email`.strip}
-        createdAt: #{Time.now}
-        notes: |
-          # Test notes
-      """
+      last_tag = second_last_tag = nil
+      if fetch(:stage) == :production
+        last_tag = last_production_tag
+        second_last_tag = last_production_tag(true)
+      elsif fetch(:stage) == :staging
+        last_tag = last_staging_tag
+        second_last_tag = last_staging_tag(true)
+      else
+        abort "Unsupported stage #{stage}"
+      end
+
+      commits = `git log --pretty=format:"%h %s (%an)" #{second_last_tag}...#{last_tag}`
+
+      release_note = 
+"""
+version: #{last_tag}
+ownerName: #{`git config --global user.name`.strip}
+emailAddress: #{`git config --global user.email`.strip}
+createdAt: #{Time.now}
+notes: |
+  #{commits.split(/\n/).map{|c| "\t\-\s#{c}\n"}.join}
+"""
       execute :echo, "\"#{release_note}\"", '>', "#{release_path}/RELEASE"
     end
   end
