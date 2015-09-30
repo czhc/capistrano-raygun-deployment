@@ -76,7 +76,7 @@ notes: |
       ask(:raygun_auth_token, 'Required')
     end
 
-    within release_path do
+    on roles(:app) do
 
       yaml = YAML::load_file(release_path.join('RELEASE'))
 
