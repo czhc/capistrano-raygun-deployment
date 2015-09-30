@@ -60,7 +60,7 @@ ownerName: #{`git config --global user.name`.strip}
 emailAddress: #{`git config --global user.email`.strip}
 createdAt: #{Time.now}
 notes: |
-  #{commits.split(/\n/).map{|c| "\t\-\s#{c}\n"}.join}
+  #{commits.split(/\n/).map{|c| "\s\s\-\s#{c}\n"}.join}
 """
       execute :echo, "\"#{release_note}\"", '>', "#{release_path}/RELEASE"
     end
