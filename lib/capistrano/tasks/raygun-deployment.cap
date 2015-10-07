@@ -62,6 +62,9 @@ createdAt: #{Time.now}
 notes: |
 #{commits.split(/\n/).map{|c| "\s\s\-\s#{c}\n"}.join}
 """
+      release_note.gsub!("\"","'")
+      release_note.force_encoding("ASCII-8BIT")
+
       execute :echo, "\"#{release_note}\"", '>', "#{release_path}/RELEASE"
     end
   end
