@@ -1,7 +1,8 @@
 # capistrano-raygun-deployment
 
 Capistrano Raygun Deployment makes it easy to notify Raygun of your deployments using a capistrano task. 
-Forked: Autowrite RELEASE from commit differences between deployment tags.
+
+Changes: Autowrite RELEASE from commit differences between deployment tags.
 
 ## Installation
 
