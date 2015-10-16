@@ -1,6 +1,7 @@
 # capistrano-raygun-deployment
 
-Capistrano Raygun Deployment makes it easy to notify Raygun of your deployments using a capistrano task.
+Capistrano Raygun Deployment makes it easy to notify Raygun of your deployments using a capistrano task. 
+Forked: Autowrite RELEASE from commit differences between deployment tags.
 
 ## Installation
 
@@ -42,7 +43,9 @@ This is an example release file:
 Once you've written this to `RELEASE`, you can deploy with `cap deploy` and your deployment will be sent to Raygun!
 
 # Changelog
-
+* **1.1.3**: Fix bug - release note task breaks with non-utf8 characters in commit log
+* **1.1.2**: Format release note and add changelog details
+* **1.1.1**: Create rake task to write release note on server after deployment using log commit list
 * **1.1.0**: Use `after deploy:finished` instead of `after :published` so that deployments are only pushed to Raygun when things 
 fully succeed.
 * **1.0.0**: Initial release
